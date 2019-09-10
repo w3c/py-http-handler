@@ -8,7 +8,7 @@ class ProtectedURLopener(urllib.FancyURLopener):
         self.surblchecker= surbl.SurblChecker('/usr/local/share/surbl/two-level-tlds','/usr/local/etc/surbl.whitelist')
 
     def open(self, url, data=None):
-	    # cf http://dev.w3.org/cvsweb/2004/PythonLib-IH/checkremote.py
+	    # cf https://github.com/w3c/py-http-handler/blob/master/checkremote.py
 	    from checkremote import check_url_safety, UnsupportedResourceError
 	    try:
 		    check_url_safety(url)
@@ -46,9 +46,10 @@ class ProxyAuthURLopener(ProtectedURLopener):
 			print 'Status: 401 Authorization Required'
 			print 'WWW-Authenticate: Basic realm="%s"' % realm
 			print 'Connection: close'
-			Page = """<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+			Page = """<!DOCTYPE html>
 <html>
 <head>
+<meta charset="utf-8">
 <title>401 Authorization Required</title>
 </head>
 <body>
