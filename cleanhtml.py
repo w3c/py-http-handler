@@ -62,8 +62,13 @@ def multi_print(s, *params):
 
 def clean_print(s, *args):
     """Print a string after passing arguments through cgi.escape.
+    The first string is NOT escaped - only subsequent parameters are
+    when they get interpolated in the string. Requires at least one
+    interpolation parameter.
 
     This is a convenience function that prints clean_format(s, *args)."""
+    if len(args) == 0:
+        raise TypeError("clean_print only cleans interpolation parameters, and so only make sense with more than one parameter given")
     print(clean_format(s, *args))
 
 if __name__ == '__main__':
