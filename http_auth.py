@@ -20,6 +20,7 @@ class ProtectedURLopener(urllib.FancyURLopener):
 
 class ProxyAuthURLopener(ProtectedURLopener):
 	error = ""
+        version = "W3C HTTP Proxy Auth URL Opener/1.1"
 	def http_error_default(self, url, fp, errcode, errmsg, headers):
 		self.error = `errcode` + " " + errmsg
 		return None
