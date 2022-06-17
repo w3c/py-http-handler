@@ -14,12 +14,13 @@
 # [1] http://www.w3.org/Consortium/Legal/2002/copyright-software-20021231
 #
 # Written October 2013 by Brett Smith <brett@w3.org>
-# This module depends on the third-party ipaddr module:
-# <http://code.google.com/p/ipaddr-py/>
+# This module depends on the python standard library ipaddress module,
+# which is available in python3 and backported to python2 as well.
+# <https://docs.python.org/3/howto/ipaddress.html>
 
 from __future__ import print_function
 
-import ipaddr
+import ipaddress
 import socket
 
 try:
@@ -53,7 +54,7 @@ def all_addrs(host):
     except socket.error as error:
         raise URLError(error)
     for addr in set(info[4][0].split('%', 1)[0] for info in addr_info):
-        yield ipaddr.IPAddress(addr)
+        yield ipaddress.ip_address(addr)
 
 def is_addr_local(addr):
     """Return true if the given IPAddress is local, else false.
@@ -149,7 +150,7 @@ class URLSafetyHandler(urlreq.BaseHandler):
 
 
 safe_url_opener = urlreq.build_opener(URLSafetyHandler())
-    
+
 if __name__ == '__main__':
     import itertools
     good_urls = ['http://www.w3.org/index.html',
