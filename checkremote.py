@@ -19,6 +19,8 @@
 # <https://docs.python.org/3/howto/ipaddress.html>
 
 from __future__ import print_function
+# to make code backward compatible between py2 and py3
+from builtins import str
 
 import ipaddress
 import socket
@@ -54,7 +56,7 @@ def all_addrs(host):
     except socket.error as error:
         raise URLError(error)
     for addr in set(info[4][0].split('%', 1)[0] for info in addr_info):
-        yield ipaddress.ip_address(addr)
+        yield ipaddress.ip_address(str(addr))
 
 def is_addr_local(addr):
     """Return true if the given IPAddress is local, else false.
