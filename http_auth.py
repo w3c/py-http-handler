@@ -1,11 +1,13 @@
-import urllib
+import urllib.request
+import urllib.parse
+import urllib.error
 import os
 
 
-class ProtectedURLopener(urllib.FancyURLopener):
+class ProtectedURLopener(urllib.request.FancyURLopener):
     def __init__(self):
         import surbl
-        urllib.FancyURLopener.__init__(self)
+        urllib.request.FancyURLopener.__init__(self)
         self.surblchecker = surbl.SurblChecker(
             '/usr/local/share/surbl/two-level-tlds', '/usr/local/etc/surbl.whitelist')
 
@@ -19,7 +21,7 @@ class ProtectedURLopener(urllib.FancyURLopener):
         if self.surblchecker.isMarkedAsSpam(url):
             raise IOError(
                 403, "Access to url '%s' is not allowed as it is marked as spam in SURBL" % url)
-        return urllib.FancyURLopener.open(self, url, data)
+        return urllib.request.FancyURLopener.open(self, url, data)
 
 
 class ProxyAuthURLopener(ProtectedURLopener):
@@ -31,7 +33,7 @@ class ProxyAuthURLopener(ProtectedURLopener):
         return None
 
     def http_error_304(self, uri, fp, errocode, errmsg, headers):
-        print 'HTTP/1.1 304 Not Modified'
+        print('HTTP/1.1 304 Not Modified')
         return None
 
     def open_local_file(self, url):
@@ -49,9 +51,9 @@ class ProxyAuthURLopener(ProtectedURLopener):
                 return self.open(scheme + ':' + url, data)
         else:
             global Page
-            print 'Status: 401 Authorization Required'
-            print 'WWW-Authenticate: Basic realm="%s"' % realm
-            print 'Connection: close'
+            print('Status: 401 Authorization Required')
+            print('WWW-Authenticate: Basic realm="%s"' % realm)
+            print('Connection: close')
             Page = """<!DOCTYPE html>
 <html>
 <head>
