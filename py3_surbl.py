@@ -65,14 +65,13 @@ class SurblChecker:
             return 0
 
     def _extractRegisteredDomain(self, authorityComponent):
-        import string
         # removing userinfo and port
         hostComponent = authorityComponent
-        if string.count(hostComponent, '@') > 0:
-            hostComponent = hostComponent[string.find(hostComponent, '@'):-1]
-        if string.count(hostComponent, ':') > 0:
-            hostComponent = hostComponent[1:string.find(hostComponent, ':')]
-        dnsParts = string.split(hostComponent, '.')
+        if hostComponent.count('@')>0:
+            hostComponent = hostComponent[hostComponent.find('@'):-1]
+        if hostComponent.count(':')>0:
+            hostComponent = hostComponent[1:hostComponent.find(':')]
+        dnsParts = hostComponent.split('.')
         secondLevelTld = dnsParts[-2] + '.' + dnsParts[-1] + "\n"
         if secondLevelTld in self._twoLevelsTlds and len(dnsParts) > 2:
             registeredName = dnsParts[-3] + '.' + \
