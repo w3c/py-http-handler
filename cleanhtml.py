@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """cleanhtml - Wrapper functions to prevent XSS in HTML output"""
 # <http://dev.w3.org/2004/PythonLib-IH/cleanhtml.py>
@@ -21,12 +21,12 @@
 # scratch, please consider using a more robust system for HTML output
 # than Python's string interpolation.
 
-from __future__ import print_function
+
 
 __all__ = ['clean_str', 'clean_strs', 'multi_format', 'clean_format',
            'multi_print', 'clean_print']
 
-from cgi import escape
+from html import escape
 from itertools import chain
 
 def clean_str(s):

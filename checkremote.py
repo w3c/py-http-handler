@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """checkremote - Common security checks for remote resources"""
 # <http://dev.w3.org/2004/PythonLib-IH/checkremote.py>
@@ -15,12 +15,7 @@
 #
 # Written October 2013 by Brett Smith <brett@w3.org>
 # This module depends on the python standard library ipaddress module,
-# which is available in python3 and backported to python2 as well.
-# <https://docs.python.org/3/howto/ipaddress.html>
-
-from __future__ import print_function
-# to make code backward compatible between py2 and py3
-from builtins import str
+# which is available in python3.
 
 import ipaddress
 import socket
