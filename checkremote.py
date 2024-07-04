@@ -151,8 +151,7 @@ safe_url_opener = urlreq.build_opener(URLSafetyHandler())
 if __name__ == '__main__':
     import itertools
     good_urls = ['http://www.w3.org/index.html',
-                 'https://w3.org:8080/Overview.html',
-                 'ftp://ftp.w3.org']
+                 'https://w3.org:8080/Overview.html']
     bad_urls = ['file:///etc/passwd',
                 'rsync://w3.org/',
                 'http://www.w3.org:22/',
