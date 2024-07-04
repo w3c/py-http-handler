@@ -14,28 +14,47 @@
 # [1] http://www.w3.org/Consortium/Legal/2002/copyright-software-20021231
 #
 # Written October 2013 by Brett Smith <brett@w3.org>
+# Extended to handle configuration files July 2023 by Jose Kahan
+#
 # This module depends on the python standard library ipaddress module,
 # which is available in python3.
 
 import ipaddress
 import socket
 
-try:
-    import urllib2 as urlreq
-    from urllib2 import URLError
-    from urlparse import urlparse
-except ImportError:  # Running under Python 3
-    import urllib.request as urlreq
-    from urllib.error import URLError
-    from urllib.parse import urlparse
+from collections import OrderedDict
+from configparser import ConfigParser
+from os import linesep
+
+import urllib.request as urlreq
+from urllib.error import URLError
+from urllib.parse import urlparse
 
 NONE_LOCAL = 0
 SOME_LOCAL = 1
 ALL_LOCAL = 2
 
+class ConfigParserMultiValues(OrderedDict):
+    """Extends ConfigParser to allow parsing a file
+    that has multiple values for identical option keys.
+
+    https://docs.python.org/3/library/configparser.html
+    https://stackoverflow.com/questions/15848674/how-to-configparse-a-file-keeping-multiple-values-for-identical-keys"""
+
+    def __setitem__(self, key, value):
+        if key in self and isinstance(value, list):
+            self[key].extend(value)
+        else:
+            super().__setitem__(key, value)
+
+    @staticmethod
+    def getlist(value):
+        """returns the single (or multiple) values of an option as a list"""
+        return value.split(linesep)
+
 class UnsupportedResourceError(URLError):
     def __init__(self, res_type, resource):
-        super(UnsupportedResourceError, self).__init__(
+        super().__init__(
             "unsupported %s: %s" % (res_type, resource))
 
 
