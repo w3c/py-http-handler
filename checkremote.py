@@ -15,7 +15,8 @@
 #
 # Written October 2013 by Brett Smith <brett@w3.org>
 #
-# Changes:
+# Changelog:
+#
 # 07/2024 J. Kahan:
 #  * Support a configuration file to give more specific behavior and
 #    exemptions to what is consider a local address. The default
