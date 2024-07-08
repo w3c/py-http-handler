@@ -14,30 +14,101 @@
 # [1] http://www.w3.org/Consortium/Legal/2002/copyright-software-20021231
 #
 # Written October 2013 by Brett Smith <brett@w3.org>
+#
+# Changes:
+# 07/2024 J. Kahan:
+#  * Support a configuration file to give more specific behavior and
+#    exemptions to what is consider a local address. The default
+#    location for this file is /usr/local/etc/hostcheck.conf
+#  * Use configuration options to give local IP addresses that should be
+#    considered as remote. This is useful when you have local server
+#    that are open to others in your local net.
+#  * Use configuration options to be able to specify if addresses that
+#    are part of a subnet should be considered local. This is useful
+#    if you have IPv6 address that don't correspond to addresses that
+#    ipaddress or the system libraries don't considers as local.
+
+#
 # This module depends on the python standard library ipaddress module,
 # which is available in python3.
 
 import ipaddress
 import socket
 
-try:
-    import urllib2 as urlreq
-    from urllib2 import URLError
-    from urlparse import urlparse
-except ImportError:  # Running under Python 3
-    import urllib.request as urlreq
-    from urllib.error import URLError
-    from urllib.parse import urlparse
+from collections import OrderedDict
+from configparser import ConfigParser
+from os import linesep
+
+import urllib.request as urlreq
+from urllib.error import URLError
+from urllib.parse import urlparse
 
 NONE_LOCAL = 0
 SOME_LOCAL = 1
 ALL_LOCAL = 2
 
+DEFAULT_CONFIG_FILE='/usr/local/etc/hostcheck.conf'
+
+class ConfigParserMultiValues(OrderedDict):
+    """Extends ConfigParser to allow parsing a file
+    that has multiple values for identical option keys.
+
+    https://docs.python.org/3/library/configparser.html
+    https://stackoverflow.com/questions/15848674/how-to-configparse-a-file-keeping-multiple-values-for-identical-keys"""
+
+    def __setitem__(self, key, value):
+        if key in self and isinstance(value, list):
+            self[key].extend(value)
+        else:
+            super().__setitem__(key, value)
+
+    @staticmethod
+    def getlist(value):
+        """returns the single (or multiple) values of an option as a list"""
+        return value.split(linesep)
+
+
 class UnsupportedResourceError(URLError):
     def __init__(self, res_type, resource):
-        super(UnsupportedResourceError, self).__init__(
+        super().__init__(
             "unsupported %s: %s" % (res_type, resource))
 
+
+def parse_config(config_file=DEFAULT_CONFIG_FILE):
+    """ reads local config for specific local subnets and local ip
+    addresses.
+
+    Initializes the global variables 'local_subnets' and
+    'addr_local_exemptions'. Each one of these variables is a list made
+    with the the different values of the respective configuration file
+    sections converted to ipaddr objects.
+
+    See hostcheck.conf.dist for syntax of the configuration file"""
+
+    parsed_config = ConfigParser(strict=False, empty_lines_in_values=False,
+                                 dict_type=ConfigParserMultiValues,
+                                 converters={'list':
+                                             ConfigParserMultiValues.getlist})
+
+    parsed_config.read(config_file)
+
+    if parsed_config.has_section('local_subnets'):
+        local_subnets = parsed_config.getlist('local_subnets',
+                                              'subnet')
+        local_subnets = [ipaddress.ip_network(value) for value in
+                         local_subnets]
+    else:
+        local_subnets = []
+
+    if parsed_config.has_section('addr_local_exemptions'):
+        addr_local_exemptions = parsed_config.getlist('addr_local_exemptions',
+                                                      'addr');
+        addr_local_exemptions = [ipaddress.ip_address(value) for value
+                                 in addr_local_exemptions]
+    else:
+        addr_local_exemptions = []
+
+    return (local_subnets, addr_local_exemptions)
 
 def all_addrs(host):
     """Iterate over IPAddress objects associated with this hostname.
@@ -53,15 +124,39 @@ def all_addrs(host):
     for addr in set(info[4][0].split('%', 1)[0] for info in addr_info):
         yield ipaddress.ip_address(str(addr))
 
-def is_addr_local(addr):
+def is_addr_in_local_subnet(addr, local_subnets=[]):
+    """Return true if the given IPAddress is in local_subnets, else false.
+    """
+    for subnet in local_subnets:
+        if addr in subnet:
+            return True
+    return False
+
+def is_addr_local_exemption(addr, addr_local_exemptions=[]):
+    """Return true if the gven IPAddress is in the local addresses
+    exemptions"""
+    if addr in addr_local_exemptions:
+        return True
+    return False
+
+def is_addr_local(addr, local_subnets=[], addr_local_exemptions=[]):
     """Return true if the given IPAddress is local, else false.
 
     An address is local if it's link-local, loopback, or for a private
     network (e.g., 10.0.0.0/8)."""
-    return any(getattr(addr, test)
-               for test in ['is_link_local', 'is_loopback', 'is_private'])
+    is_local = any(getattr(addr, test)
+                   for test in ['is_link_local', 'is_loopback', 'is_private'])
 
-def is_host_local(host):
+    if not is_local:
+        is_local = is_addr_in_local_subnet(addr, local_subnets)
+
+    if ( is_local and not getattr(addr, 'is_loopback') and
+         is_addr_local_exemption(addr, addr_local_exemptions) ):
+        is_local = False
+
+    return is_local
+
+def is_host_local(host, config_file=DEFAULT_CONFIG_FILE):
     """Test if a hostname has local IP addresses.
 
     This function checks every IP address associated with the given
@@ -72,8 +167,14 @@ def is_host_local(host):
 
     You may pass in an IP address string.  The function will return
     ALL_LOCAL if the address is local, else NONE_LOCAL."""
+
+    # check that output of parse_config returns a list if config_file doesn't exist
+    (local_subnets, addr_local_exemptions) =  parse_config(config_file)
+
     addresses = list(all_addrs(host))
-    local_count = len([a for a in addresses if is_addr_local(a)])
+    local_count = \
+        len([a for a in addresses if is_addr_local(a, local_subnets,
+                                                   addr_local_exemptions)])
     if local_count == 0:
         return NONE_LOCAL
     elif local_count == len(addresses):
@@ -104,7 +205,8 @@ def check_port(port, service, extra_ports=frozenset(), min_safe_port=1024):
         raise UnsupportedResourceError("port", port)
 
 def check_url_safety(url, schemes=frozenset(['http', 'https', 'ftp']),
-                     check_port_func=check_port):
+                     check_port_func=check_port,
+                     config_file=DEFAULT_CONFIG_FILE):
     """Check if a URL points to an acceptable remote resource.
 
     The first argument is the URL to test.  It is considered safe if it
@@ -125,7 +227,7 @@ def check_url_safety(url, schemes=frozenset(['http', 'https', 'ftp']),
         raise UnsupportedResourceError("scheme", url)
     if parsed_url.port is not None:
         check_port_func(parsed_url.port, parsed_url.scheme.lower())
-    if is_host_local(parsed_url.hostname):
+    if is_host_local(parsed_url.hostname, config_file):
         raise UnsupportedResourceError("address", url)
 
 class URLSafetyHandler(urlreq.BaseHandler):
@@ -139,28 +241,51 @@ class URLSafetyHandler(urlreq.BaseHandler):
     Each time a request is passed through this handler, the check
     function will be called with the request URL as an argument.  It
     should raise an exception if the URL is unsafe to handle."""
-    def __init__(self, check_func=check_url_safety):
+    def __init__(self, check_func=check_url_safety, config_file=DEFAULT_CONFIG_FILE):
         self.check_url = check_func
+        self.config_file = config_file
 
     def default_open(self, req, *args, **kwargs):
-        self.check_url(req.get_full_url())
+        self.check_url(req.get_full_url(), config_file=self.config_file)
 
 
-safe_url_opener = urlreq.build_opener(URLSafetyHandler())
+safe_url_opener = urlreq.build_opener(URLSafetyHandler(config_file=DEFAULT_CONFIG_FILE))
 
 if __name__ == '__main__':
     import itertools
+    import tempfile
+
     good_urls = ['http://www.w3.org/index.html',
                  'https://w3.org:8080/Overview.html',
-                 'ftp://ftp.w3.org']
+                 'https://10.0.0.23/index.html',
+                 'https://[2001:0000:130F:0000:0000:09C0:876A:130B]/index.html']
     bad_urls = ['file:///etc/passwd',
                 'rsync://w3.org/',
                 'http://www.w3.org:22/',
                 'http://localhost/server-status',
-                'http://localhost:8001/2012/pyRdfa/Overview.html']
+                'http://localhost:8001/2012/pyRdfa/Overview.html',
+                'https://10.0.0.24/index.html',
+                'https://[2001:0000:130F:0000:0000:09C0:876A:130C]/index.html']
+    test_config_file = tempfile.NamedTemporaryFile(delete=True)
     test_opener = urlreq.OpenerDirector()
-    test_opener.add_handler(URLSafetyHandler())
-    check_funcs = [check_url_safety, test_opener.open]
+    test_opener.add_handler(URLSafetyHandler(config_file=test_config_file.name))
+    # the value after the function name says if the function accepts
+    # the config_file parameter
+    check_funcs = [(check_url_safety, True), (test_opener.open, False)]
+
+    def write_test_config(fp):
+        fp.write(b"""
+# a comment
+
+[local_subnets]
+subnet = 2001:0000:130F:0000::/56
+
+[addr_local_exemptions]
+addr = 10.0.0.23
+addr = 2001:0000:130F:0000:0000:09C0:876A:130B
+        """)
+        fp.flush()
+
     def is_check_passed(call, *args, **kwargs):
         try:
             call(*args, **kwargs)
@@ -168,19 +293,39 @@ if __name__ == '__main__':
             return False
         return True
 
+    def prepare_extra_args(add_config_file=False, config_file=DEFAULT_CONFIG_FILE):
+        if add_config_file:
+            extra_args = { 'config_file': config_file }
+        else:
+            extra_args = {}
+        return extra_args
+
+    write_test_config(test_config_file)
+
     for host in ['127.0.0.1', '127.254.1.2', '10.1.2.3', '10.254.4.5',
                  '172.16.1.2', '172.31.4.5', '192.168.0.1', '192.168.254.5',
-                 'fe80::1', 'fe80:ffff::ffff', 'localhost', 'ip6-localhost']:
-        assert is_host_local(host), "local host %s not recognized" % (host,)
-    for host in ['4.2.2.1', '2a03::1', 'w3.org', 'www.w3.org']:
-        assert not is_host_local(host), "non-local host %s misflagged" % (host,)
+                 'fe80::1', 'fe80:ffff::ffff', 'localhost', 'ip6-localhost',
+                 '10.0.0.24',
+                 '2001:0000:130F:0000:0000:09C0:876A:130C'
+                 ]:
+        assert is_host_local(host, test_config_file.name), f"local host {host} not recognized"
+    for host in ['4.2.2.1', '2a03::1', 'w3.org', 'www.w3.org',
+                 '10.0.0.23',
+                 '2001:0000:130F:0000:0000:09C0:876A:130B'
+                 ]:
+        assert not is_host_local(host, test_config_file.name), f"non-local host {host} misflagged"
 
     for url, check_func in itertools.product(good_urls, check_funcs):
-        assert is_check_passed(check_func, url), \
-            "safe URL %s failed safety check" % (url,)
+        extra_args = prepare_extra_args(add_config_file=check_func[1],
+                                        config_file=test_config_file.name)
+        assert is_check_passed(check_func[0], url, **extra_args), \
+            f"safe URL {url} failed safety check"
+
     for url, check_func in itertools.product(bad_urls, check_funcs):
-        assert not is_check_passed(check_func, url), \
-            "unsafe URL %s passed safety check" % (url,)
+        extra_args = prepare_extra_args(add_config_file=check_func[1],
+                                        config_file=test_config_file.name)
+        assert not is_check_passed(check_func[0], url, **extra_args), \
+            f"unsafe URL {url} passed safety check"
 
     class FakeRedirector(urlreq.BaseHandler):
         handler_order = URLSafetyHandler.handler_order + 100
@@ -193,8 +338,8 @@ if __name__ == '__main__':
     for url in bad_urls:
         opener = urlreq.OpenerDirector()
         opener.add_handler(FakeRedirector(url))
-        opener.add_handler(URLSafetyHandler())
+        opener.add_handler(URLSafetyHandler(config_file=test_config_file.name))
         assert not is_check_passed(opener.open, good_urls[0]), \
-            "tried to open unsafe URL %s" % (url,)
+            f"tried to open unsafe URL {url}"
 
     print("Tests passed.")

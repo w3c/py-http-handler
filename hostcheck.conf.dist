@@ -1,0 +1,19 @@
+# HostCheck sample configuration file
+# 
+# This file complements checkhost.py by adding local subnets that
+# are not recognized as such by the mechanisms used by python
+# system standard libraries (e.g., for IPv6).
+#
+# This file also allows to add local addresses exemptions: we want
+# certain hosts to be reachable even if accessed using their internal
+# IP addresses (for example for Proxy Front-Ends (PFE).
+#
+# See https://metacpan.org/pod/Config::IniFiles for syntax
+#
+
+[local_subnets]
+subnet = 2001:0000:130F:0000::/56
+
+[addr_local_exemptions]
+addr = 10.0.23
+addr = '2001:0000:130F:0000:0000:09C0:876A:130B'
