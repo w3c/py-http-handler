@@ -60,7 +60,11 @@ def main():
 
     try:
         check_url_safety(url)
-        check_url_hostname(url)
+        # the hostcheck.conf file should contain the IP@ of the servers
+        # you're authorized to access in your subnet. If you want to
+        # futher restrict access outside of your local subnet,
+        # uncomment the line below and update the hostcheck.conf file
+        #check_url_hostname(url)
         rv = 0
     except:
         rv = -1
