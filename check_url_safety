@@ -1,8 +1,9 @@
 #!/bin/env python3
 # -*- coding: utf-8 -*-
-""" test_url_safety - standalone script for calling check_url_safety"""
+""" check_url_safety - standalone script for calling checkrmote.check_url_safety
+"""
 
-## test_url_safety
+## check_url_safety
 ##
 ## Stand-alone script for using check_url_safety from
 ## non python scripts.
