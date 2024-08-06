@@ -32,9 +32,9 @@ from checkremote import check_url_safety
 
 # initialize authorized hosts with the hosts that the caller script
 # may access
-authorized_host = [ 'example.org',
-                    'example2.org',
-                    'www.example.com' ]
+authorized_hosts = [ 'example.org',
+                     'example2.org',
+                     'www.example.com' ]
 
 def check_url_hostname(url=None):
     """checks that the hostname in a url is an authorized host"""
