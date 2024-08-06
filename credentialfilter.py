@@ -77,6 +77,9 @@ class CredentialFilter():
     """
 
     def __init__(self, config_file=DEFAULT_CONFIG_FILE):
+        if config_file is None:
+            config_file = DEFAULT_CONFIG_FILE
+
         self.config_file = config_file
         self.parse_config(config_file)
 
@@ -139,18 +142,22 @@ class CredentialFilter():
     def add_safe_domain_cookie_name(self, cookie_name):
         self._append_configuration_list(self.safe_domain_cookie_names, cookie_name)
 
-    def host_trust_level(self, host=None):
+    def host_trust_level(self, url=None, target_host=None):
         """returns a HostTrustLevel depending if a host
         is declared in the trusted_hosts list, the safe_hosts lists
         or none of the above.
         """
+
+        if url:
+            target_host = self.extract_host_from_url(url)
+
         rv = HostTrustLevels.UNSAFE.value
-        if host:
-            if host in self.trusted_hosts:
+        if target_host:
+            if target_host in self.trusted_hosts:
                 rv =  HostTrustLevels.TRUSTED.value
             else:
                 for safe_domain in self.safe_domains:
-                    if host.endswith(safe_domain):
+                    if target_host.endswith(safe_domain):
                         rv =  HostTrustLevels.SAFE.value
                         break
         return rv
@@ -161,6 +168,11 @@ class CredentialFilter():
         if url is None:
             return None
         parsed_url = urlparse(url)
+
+        if parsed_url.hostname is None:
+            raise UnsupportedResourceError('extract_host_from_url',
+                                           f"couldn't extract host from url {url}")
+
         return parsed_url.hostname
 
     def cookie_filter(self, cookies=None, passthru_cookie_names=None, hosts=None):
@@ -230,10 +242,6 @@ class CredentialFilter():
 
         if url is not None:
             target_host = self.extract_host_from_url(url)
-            if target_host is None:
-                raise UnsupportedResourceError('target_host',
-                                               f"couldn't extract host from url {url}")
-
 
         # if target_host is one of the trusted hosts, we generate cookies
         # for all the trusted_hosts
@@ -253,6 +261,10 @@ class CredentialFilter():
                                                      self.safe_domains)
                 host_trust_level |= HostTrustLevels.SAFE.value
                 break
+
+        # adjust for the | addition of the levels bitlevel
+        if host_trust_level > HostTrustLevels.TRUSTED.value:
+            host_trust_level = HostTrustLevels.TRUSTED.value
 
         if merge_cookies:
             trusted_cookies.extend(safe_domain_cookies)
@@ -293,7 +305,7 @@ def extract_host_from_url(url=None, config_file=None):
 def host_trust_level(target_host=None, config_file=None):
     if _filter is None:
         init(config_file)
-    return _filter.host_trust_level(target_host)
+    return _filter.host_trust_level(target_host=target_host)
 
 def cookie_filter(cookies=None, passthru_cookie_names=None, hosts=None,
                   config_file=None):
