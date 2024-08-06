@@ -1,0 +1,70 @@
+#!/bin/env python3
+# -*- coding: utf-8 -*-
+""" test_url_safety - standalone script for calling check_url_safety"""
+
+## test_url_safety
+##
+## Stand-alone script for using check_url_safety from
+## non python scripts.
+##
+## A caller scripts that makes proxy request on behalf of
+## a user can use this script to check that the url it will
+## be open passes a set of safety (and security) checks
+## as well as to check if the caller script can request a
+## resource from the remote host.
+##
+## Returns 0 if a url passes the check_url_safety test,
+## non 0 otherwise
+##
+## To do:
+## move check_url_hostname to checkremote.py
+##
+## Author: J. Kahan (9/July/2024)
+
+import sys
+import argparse
+
+from urllib.error import URLError
+from urllib.parse import urlparse
+
+from checkremote import check_url_safety
+
+# initialize authorized hosts with the hosts that the caller script
+# may access
+authorized_host = [ 'example.org',
+                    'example2.org',
+                    'www.example.com' ]
+
+def check_url_hostname(url=None):
+    """checks that the hostname in a url is an authorized host"""
+    parsed_url = urlparse(url)
+    if parsed_url.hostname in authorized_hosts:
+        return 1
+    else:
+        raise UnsupportedResourceError('hostname', url)
+
+def main():
+    url = None
+
+    parser = argparse.ArgumentParser(description='Checks if a URL is safe for opening')
+    parser.add_argument('-u', '--url', type=str, required=True,
+                        help='url to be checked', default=None)
+
+    args = parser.parse_args()
+    url = args.url
+
+    if url is None:
+        parser.print_help()
+        sys.exit(-1)
+
+    try:
+        check_url_safety(url)
+        check_url_hostname(url)
+        rv = 0
+    except:
+        rv = -1
+
+    sys.exit(rv)
+
+if __name__ == "__main__":
+    main()
