@@ -15,8 +15,7 @@
 #
 # Written October 2013 by Brett Smith <brett@w3.org>
 #
-# Changelog:
-#
+# Changes:
 # 07/2024 J. Kahan:
 #  * Support a configuration file to give more specific behavior and
 #    exemptions to what is consider a local address. The default
@@ -72,7 +71,7 @@ class ConfigParserMultiValues(OrderedDict):
 class UnsupportedResourceError(URLError):
     def __init__(self, res_type, resource):
         super().__init__(
-            "unsupported %s: %s" % (res_type, resource))
+            f'unsupported {res_type}: {resource}')
 
 
 def parse_config(config_file=DEFAULT_CONFIG_FILE):
@@ -103,7 +102,7 @@ def parse_config(config_file=DEFAULT_CONFIG_FILE):
 
     if parsed_config.has_section('addr_local_exemptions'):
         addr_local_exemptions = parsed_config.getlist('addr_local_exemptions',
-                                                      'addr');
+                                                      'addr')
         addr_local_exemptions = [ipaddress.ip_address(value) for value
                                  in addr_local_exemptions]
     else:
@@ -117,7 +116,8 @@ def all_addrs(host):
     You may pass in an IP address string.  That will simply return an
     iterator with the corresponding IPAddress object.
 
-    If the hostname cannot be resolved, a URLError is raised."""
+    If the hostname cannot be resolved, a URLError is raised.
+    """
     try:
         addr_info = socket.getaddrinfo(host, None)
     except socket.error as error:
@@ -125,26 +125,40 @@ def all_addrs(host):
     for addr in set(info[4][0].split('%', 1)[0] for info in addr_info):
         yield ipaddress.ip_address(str(addr))
 
-def is_addr_in_local_subnet(addr, local_subnets=[]):
+def is_addr_in_local_subnet(addr, local_subnets=None):
     """Return true if the given IPAddress is in local_subnets, else false.
     """
+    if local_subnets is None:
+        local_subnets = []
+
     for subnet in local_subnets:
         if addr in subnet:
             return True
     return False
 
-def is_addr_local_exemption(addr, addr_local_exemptions=[]):
+def is_addr_local_exemption(addr, addr_local_exemptions=None):
     """Return true if the gven IPAddress is in the local addresses
-    exemptions"""
+    exemptions
+    """
+    if addr_local_exemptions is None:
+        addr_local_exemptions=[]
+
     if addr in addr_local_exemptions:
         return True
     return False
 
-def is_addr_local(addr, local_subnets=[], addr_local_exemptions=[]):
+def is_addr_local(addr, local_subnets=None, addr_local_exemptions=None):
     """Return true if the given IPAddress is local, else false.
 
     An address is local if it's link-local, loopback, or for a private
-    network (e.g., 10.0.0.0/8)."""
+    network (e.g., 10.0.0.0/8).
+    """
+    if local_subnets is None:
+        local_subnets=[]
+
+    if addr_local_exemptions is None:
+        addr_local_exemptions=[]
+
     is_local = any(getattr(addr, test)
                    for test in ['is_link_local', 'is_loopback', 'is_private'])
 
@@ -167,7 +181,8 @@ def is_host_local(host, config_file=DEFAULT_CONFIG_FILE):
     can simply use this function as a boolean test.
 
     You may pass in an IP address string.  The function will return
-    ALL_LOCAL if the address is local, else NONE_LOCAL."""
+    ALL_LOCAL if the address is local, else NONE_LOCAL.
+    """
 
     # check that output of parse_config returns a list if config_file doesn't exist
     (local_subnets, addr_local_exemptions) =  parse_config(config_file)
@@ -177,11 +192,13 @@ def is_host_local(host, config_file=DEFAULT_CONFIG_FILE):
         len([a for a in addresses if is_addr_local(a, local_subnets,
                                                    addr_local_exemptions)])
     if local_count == 0:
-        return NONE_LOCAL
+        rv = NONE_LOCAL
     elif local_count == len(addresses):
-        return ALL_LOCAL
+        rv = ALL_LOCAL
     else:
-        return SOME_LOCAL
+        rv = SOME_LOCAL
+
+    return rv
 
 def check_port(port, service, extra_ports=frozenset(), min_safe_port=1024):
     """Check if a port is acceptable for remote resources.
@@ -222,7 +239,8 @@ def check_url_safety(url, schemes=frozenset(['http', 'https', 'ftp']),
       is_host_local function.
 
     If any of these tests fail, this function raises an
-    UnsupportedResrouceError."""
+    UnsupportedResrouceError.
+    """
     parsed_url = urlparse(url)
     if (schemes is not None) and (parsed_url.scheme.lower() not in schemes):
         raise UnsupportedResourceError("scheme", url)
