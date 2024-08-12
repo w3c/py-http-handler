@@ -50,6 +50,8 @@ def main():
     parser = argparse.ArgumentParser(description='Checks if a URL is safe for opening')
     parser.add_argument('-u', '--url', type=str, required=True,
                         help='url to be checked', default=None)
+    parser.add_argument('-cf', '--conf', type=str, required=False,
+                        help='configuration file', default=None)
 
     args = parser.parse_args()
     url = args.url
@@ -59,7 +61,7 @@ def main():
         sys.exit(-1)
 
     try:
-        check_url_safety(url)
+        check_url_safety(url, config_file=args.conf)
         # the hostcheck.conf file should contain the IP@ of the servers
         # you're authorized to access in your subnet. If you want to
         # futher restrict access outside of your local subnet,
