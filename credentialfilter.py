@@ -222,6 +222,11 @@ class CredentialFilter():
             rv = input_list
         return rv
 
+    def get_trusted_hosts(self):
+        """ Return the list of trusted hosts from the config file.
+        """
+        return self.trusted_hosts
+
     def credential_filter(self, cookies, url=None, target_host=None, merge_cookies=True):
         """Transforms the value of an HTTP cookie header into a filtered list
         of Set-Cookie headers.
