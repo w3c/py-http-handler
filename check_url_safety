@@ -61,7 +61,8 @@ def main():
         sys.exit(-1)
 
     try:
-        check_url_safety(url, config_file=args.conf)
+        kwargs = dict(config_file=args.conf)
+        check_url_safety(url, **{k: v for k, v in kwargs.items() if v is not None})
         # the hostcheck.conf file should contain the IP@ of the servers
         # you're authorized to access in your subnet. If you want to
         # futher restrict access outside of your local subnet,
