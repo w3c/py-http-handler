@@ -108,7 +108,28 @@ def parse_config(config_file=DEFAULT_CONFIG_FILE):
     else:
         addr_local_exemptions = []
 
-    return (local_subnets, addr_local_exemptions)
+    if parsed_config.has_section('addr_sso_bypass'):
+        addr_local_sso_bypass = parsed_config.getlist('addr_sso_bypass',
+                                                      'addr')
+        addr_local_sso_bypass = [ipaddress.ip_address(value) for value
+                                 in addr_local_exemptions]
+    else:
+        addr_local_sso_bypass = []
+
+    if (
+            parsed_config.has_section('sso_bypass_header')
+            and parsed_config.has_option('sso_bypass_header', 'name')
+            and parsed_config.has_option('sso_bypass_header', 'value')
+    ):
+
+        sso_bypass_header['name'] = parsed_config.getlist('sso_bypass_header',
+                                                          'name')
+        sso_bypass_header['value'] = parsed_config.getlist('sso_bypass_header',
+                                                           'value')
+    else:
+        sso_bypass_header = {}
+
+    return (local_subnets, addr_local_exemptions, addr_local_sso_bypass, sso_bypass_header)
 
 def all_addrs(host):
     """Iterate over IPAddress objects associated with this hostname.
@@ -185,7 +206,7 @@ def is_host_local(host, config_file=DEFAULT_CONFIG_FILE):
     """
 
     # check that output of parse_config returns a list if config_file doesn't exist
-    (local_subnets, addr_local_exemptions) =  parse_config(config_file)
+    (local_subnets, addr_local_exemptions, *__) =  parse_config(config_file)
 
     addresses = list(all_addrs(host))
     local_count = \
@@ -302,6 +323,14 @@ subnet = 2001:0000:130F:0000::/56
 [addr_local_exemptions]
 addr = 10.0.0.23
 addr = 2001:0000:130F:0000:0000:09C0:876A:130B
+
+[addr_local_sso_bypass]
+addr = 10.0.0.23
+addr = 2001:0000:130F:0000:0000:09C0:876A:130B
+
+[addr_sso_bypass_header]
+name = Foo
+value = Bar
         """)
         fp.flush()
 
