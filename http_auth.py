@@ -13,7 +13,7 @@ class ProtectedURLopener(urllib.request.FancyURLopener):
 
     def open(self, url, data=None):
         # cf https://github.com/w3c/py-http-handler/blob/master/checkremote.py
-        from checkremote import check_url_safety, UnsupportedResourceError
+        from checkremote import check_url_safety, check_sso_bypass, UnsupportedResourceError
         try:
             check_url_safety(url)
         except UnsupportedResourceError:
@@ -21,6 +21,12 @@ class ProtectedURLopener(urllib.request.FancyURLopener):
         if self.surblchecker.isMarkedAsSpam(url):
             raise IOError(
                 403, "Access to url '%s' is not allowed as it is marked as spam in SURBL" % url)
+
+        sso_bypass_header = check_sso_bypass(url)
+        # test it's not added after redirecting to a non bypass host
+        if sso_bypass_header:
+            self.addHeader(sso_bypass['name'], sso_bypass['value'])
+
         return urllib.request.FancyURLopener.open(self, url, data)
 
 
