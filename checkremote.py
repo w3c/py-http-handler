@@ -126,7 +126,7 @@ def parse_config(config_file=DEFAULT_CONFIG_FILE):
         addr_local_sso_bypass = parsed_config.getlist('addr_local_sso_bypass',
                                                       'addr')
         addr_local_sso_bypass = [ipaddress.ip_address(value) for value
-                                 in addr_local_exemptions]
+                                 in addr_local_sso_bypass]
     else:
         addr_local_sso_bypass = []
 
@@ -305,12 +305,13 @@ def is_host_local_sso_bypass(host, config_file=DEFAULT_CONFIG_FILE, config_parse
     addr_local_sso_bypass = config_parsed['addr_local_sso_bypass']
     sso_bypass_header = config_parsed['sso_bypass_header']
 
-    addresses = list(all_addrs(host))
-    local_count = \
-        len([a for a in addresses if a in addr_local_sso_bypass])
+    if addr_local_sso_bypass and sso_bypass_header:
+        addresses = list(all_addrs(host))
+        local_count = \
+            len([a for a in addresses if a in addr_local_sso_bypass])
 
-    if local_count > 0:
-        rv = sso_bypass_header
+        if local_count > 0:
+            rv = sso_bypass_header
 
     return rv
 
