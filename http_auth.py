@@ -6,10 +6,9 @@ with checkremote.py.
 Module originally written by Dan Conolly and subsequently maintained
 by Dominique Hazael-Massieu and Brett Smith (2002-2021)
 
-2024-10-02: J. Kahan
-            module rewrite and updated to use OpenerDirector handlers,
-            fix security issues, and add a new configurable bypass
-            header option.
+* 2024-10-02: J. Kahan
+  rewrote the module and updated to use OpenerDirector handlers, fix
+  security issues, and add a new configurable bypass header option.
 """
 
 import urllib
