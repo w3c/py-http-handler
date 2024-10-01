@@ -137,10 +137,12 @@ def parse_config(config_file=DEFAULT_CONFIG_FILE):
             and parsed_config.has_option('sso_bypass_header', 'value')
     ):
 
-        sso_bypass_header['name'] = parsed_config.get('sso_bypass_header',
-                                                      'name')
-        sso_bypass_header['value'] = parsed_config.get('sso_bypass_header',
-                                                       'value')
+        name = parsed_config.get('sso_bypass_header', 'name')
+        value = parsed_config.get('sso_bypass_header','value')
+
+        if name and value:
+            sso_bypass_header['name'] = name
+            sso_bypass_header['value'] = value
 
     return { 'local_subnets' : local_subnets,
              'addr_local_exemptions': addr_local_exemptions,
