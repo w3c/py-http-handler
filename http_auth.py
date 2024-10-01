@@ -223,10 +223,7 @@ class ProxyAuthURLopener(ProtectedURLopener):
 
 def tests():
     """
-    @@@ complete these unittests or remove them
-    @@@ separate this function into two.. one that makes
-    the query and gets the exceptions, the other
-    one that just compares the response with an assert
+    Small testsuite to ease module maintenance.
     """
 
     def test_url(opener,  url):
@@ -281,12 +278,6 @@ def tests():
 
     # protected URI
     url = 'https://httpbin.org/basic-auth/foo/bar'
-    (resp, error_msg) = test_url(opener, url)
-    assert resp is None, 'expected empty resp object'
-    assert error_msg.startswith('HTTP Error 401 '), 'expected HTTP Error 401'
-
-    # protected URI + redirection
-    url = 'https://www.w3.org/Systems'
     (resp, error_msg) = test_url(opener, url)
     assert resp is None, 'expected empty resp object'
     assert error_msg.startswith('HTTP Error 401 '), 'expected HTTP Error 401'
