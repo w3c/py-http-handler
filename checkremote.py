@@ -274,7 +274,7 @@ def check_url_safety(url, schemes=frozenset(['http', 'https']),
     passes all of the following tests:
     * The URL scheme is included in the schemes argument.  Acceptable
       schemes should be listed as all-lowercase strings.  By default,
-      http, https, and ftp are accepted.  If None, all schemes are accepted.
+      http and https are accepted.  If None, all schemes are accepted.
     * The URL port, if specified, is checked using check_port_func.  This
       function is passed two arguments: the port number, and the lowercase
       URL scheme.  The default is this module's check_port function.
@@ -374,10 +374,12 @@ subnet = 2001:0000:130F:0000::/56
 
 [addr_local_exemptions]
 addr = 10.0.0.23
+addr = 93.184.215.14
 addr = 2001:0000:130F:0000:0000:09C0:876A:130B
 
 [addr_local_sso_bypass]
 addr = 10.0.0.23
+addr = 93.184.215.14
 addr = 2001:0000:130F:0000:0000:09C0:876A:130B
 
 [sso_bypass_header]
@@ -400,9 +402,11 @@ value = Bar
             extra_args = {}
         return extra_args
 
-    good_urls = ['http://www.w3.org/index.html',
+    good_urls = ['http://example.org/index.html',
+                 'http://10.0.0.23/index.html',
                  'https://w3.org:8080/Overview.html',
                  'https://10.0.0.23/index.html',
+                 'https://example.org/index.html',
                  'https://[2001:0000:130F:0000:0000:09C0:876A:130B]/index.html']
     bad_urls = ['file:///etc/passwd',
                 'rsync://w3.org/',
@@ -413,7 +417,6 @@ value = Bar
                 'https://[2001:0000:130F:0000:0000:09C0:876A:130C]/index.html']
 
     test_config_file = tempfile.NamedTemporaryFile(delete=False)
-    print("created {test_config_file.name}")
     atexit.register(rmfile, test_config_file.name)
     write_test_config(test_config_file)
 
@@ -432,22 +435,24 @@ value = Bar
         assert is_host_local(host, test_config_file.name), f"local host {host} not recognized"
 
     for host in ['4.2.2.1', '2a03::1', 'w3.org',
-                 '10.0.0.23',
+                 'example.org',
                  '2001:0000:130F:0000:0000:09C0:876A:130B'
                  ]:
         assert not is_host_local(host, test_config_file.name), f"non-local host {host} misflagged"
 
-    for host in ['10.0.0.23',
+    for host in ['example.org',
+                 '10.0.0.23',
                  '2001:0000:130F:0000:0000:09C0:876A:130B'
                  ]:
         assert is_host_local_sso_bypass(host, test_config_file.name), f"sso bypass host {host} not recognized"
 
     for host in ['4.2.2.1', '2a03::1', 'w3.org',
+                 '10.0.0.24',
                  '2001:0000:130F:0000:0000:09C0:876A:130C'
                  ]:
         assert not is_host_local_sso_bypass(host, test_config_file.name), f"non sso bypass host {host} misflagged"
 
-    sso_bypass_header = is_host_local_sso_bypass('10.0.0.23', test_config_file.name)
+    sso_bypass_header = is_host_local_sso_bypass('example.org', test_config_file.name)
     assert sso_bypass_header, f"sso bypass header is None"
     assert sso_bypass_header['name'] == 'Foo', f"sso bypass header name, expected 'Foo' got {sso_bypass_header['name']}"
     assert sso_bypass_header['value'] == 'Bar', f"sso bypass header value, expected 'Bar' got {sso_bypass_header['name']}"
