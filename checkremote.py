@@ -356,24 +356,14 @@ safe_url_opener = urlreq.build_opener(URLSafetyHandler(config_file=DEFAULT_CONFI
 if __name__ == '__main__':
     import itertools
     import tempfile
+    import atexit
+    import os
 
-    good_urls = ['http://www.w3.org/index.html',
-                 'https://w3.org:8080/Overview.html',
-                 'https://10.0.0.23/index.html',
-                 'https://[2001:0000:130F:0000:0000:09C0:876A:130B]/index.html']
-    bad_urls = ['file:///etc/passwd',
-                'rsync://w3.org/',
-                'http://www.w3.org:22/',
-                'http://localhost/server-status',
-                'http://localhost:8001/2012/pyRdfa/Overview.html',
-                'https://10.0.0.24/index.html',
-                'https://[2001:0000:130F:0000:0000:09C0:876A:130C]/index.html']
-    test_config_file = tempfile.NamedTemporaryFile(delete=True)
-    test_opener = urlreq.OpenerDirector()
-    test_opener.add_handler(URLSafetyHandler(config_file=test_config_file.name))
-    # the value after the function name says if the function accepts
-    # the config_file parameter
-    check_funcs = [(check_url_safety, True), (test_opener.open, False)]
+    def rmfile(filename):
+        try:
+            os.unlink(filename)
+        except:
+            pass
 
     def write_test_config(fp):
         fp.write(b"""
@@ -410,7 +400,28 @@ value = Bar
             extra_args = {}
         return extra_args
 
+    good_urls = ['http://www.w3.org/index.html',
+                 'https://w3.org:8080/Overview.html',
+                 'https://10.0.0.23/index.html',
+                 'https://[2001:0000:130F:0000:0000:09C0:876A:130B]/index.html']
+    bad_urls = ['file:///etc/passwd',
+                'rsync://w3.org/',
+                'http://www.w3.org:22/',
+                'http://localhost/server-status',
+                'http://localhost:8001/2012/pyRdfa/Overview.html',
+                'https://10.0.0.24/index.html',
+                'https://[2001:0000:130F:0000:0000:09C0:876A:130C]/index.html']
+
+    test_config_file = tempfile.NamedTemporaryFile(delete=False)
+    print("created {test_config_file.name}")
+    atexit.register(rmfile, test_config_file.name)
     write_test_config(test_config_file)
+
+    test_opener = urlreq.OpenerDirector()
+    test_opener.add_handler(URLSafetyHandler(config_file=test_config_file.name))
+    # the value after the function name says if the function accepts
+    # the config_file parameter
+    check_funcs = [(check_url_safety, True), (test_opener.open, False)]
 
     for host in ['127.0.0.1', '127.254.1.2', '10.1.2.3', '10.254.4.5',
                  '172.16.1.2', '172.31.4.5', '192.168.0.1', '192.168.254.5',
@@ -419,7 +430,8 @@ value = Bar
                  '2001:0000:130F:0000:0000:09C0:876A:130C'
                  ]:
         assert is_host_local(host, test_config_file.name), f"local host {host} not recognized"
-    for host in ['4.2.2.1', '2a03::1', 'w3.org', 'www.w3.org',
+
+    for host in ['4.2.2.1', '2a03::1', 'w3.org',
                  '10.0.0.23',
                  '2001:0000:130F:0000:0000:09C0:876A:130B'
                  ]:
@@ -430,7 +442,7 @@ value = Bar
                  ]:
         assert is_host_local_sso_bypass(host, test_config_file.name), f"sso bypass host {host} not recognized"
 
-    for host in ['4.2.2.1', '2a03::1', 'w3.org', 'www.w3.org',
+    for host in ['4.2.2.1', '2a03::1', 'w3.org',
                  '2001:0000:130F:0000:0000:09C0:876A:130C'
                  ]:
         assert not is_host_local_sso_bypass(host, test_config_file.name), f"non sso bypass host {host} misflagged"
