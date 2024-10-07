@@ -264,7 +264,7 @@ def check_port(port, service, extra_ports=frozenset(), min_safe_port=1024):
             (port >= min_safe_port)):
         raise UnsupportedResourceError("port", port)
 
-def check_url_safety(url, schemes=frozenset(['http', 'https', 'ftp']),
+def check_url_safety(url, schemes=frozenset(['http', 'https']),
                      check_port_func=check_port,
                      config_file=DEFAULT_CONFIG_FILE,
                      config_parsed=None):
