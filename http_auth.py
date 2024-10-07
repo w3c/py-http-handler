@@ -152,8 +152,12 @@ class ProtectedURLopener():
 
         super().__init__(*args, **kwargs)
 
+        # temp storage for user defined headers. Will be processed
+        # when we call open()
+        self.headers = {}
+
         # filled-up as needed by the default_http_handler
-        self.protected_url_opener_error = ""
+        self.error = ""
 
         check_url = self.CheckUrl()
 
@@ -196,7 +200,15 @@ class ProtectedURLopener():
         urllib.request.install_opener(self.opener)
 
     def set_error(self, error):
-        self.protected_url_opener_error = error
+        self.error = error
+
+    def add_header(self, header_name, header_value):
+        """
+        temporarily store headers as we won't get the request
+        object until we call open()
+        """
+        if header_name and header_value:
+            self.headers.append(header_name, header_value)
 
     def open(self, url, *args, **kwargs):
         """
@@ -204,14 +216,20 @@ class ProtectedURLopener():
         """
 
         # clear previous error if we're reusing the same opener
-        self.protected_url_opener_error = ""
+        self.error = ""
 
         req = urllib.request.Request(url, unverifiable=True)
+
+        if self.headers:
+            for header, value in self.headers:
+                req.add_header(header, value)
+
         resp = urllib.request.urlopen( req,
                                        #timeout in seconds
                                        timeout=3.05,
                                       )
         return resp
+
 
 class ProxyAuthURLopener(ProtectedURLopener):
     """
@@ -233,23 +251,23 @@ def tests():
         try:
             resp = opener.open( url )
         except urllib.error.HTTPError as e:
-            opener.protected_url_opener_error = f"HTTP Error {e.code} {e.reason}"
+            opener.error = f"HTTP Error {e.code} {e.reason}"
             resp = None
         except urllib.error.URLError as e:
             # use this exp one instead of http.client in htmldiff
-            opener.protected_url_opener_error = f"URL error: invalid URL"
+            opener.error = f"URL error: invalid URL"
             resp = None
         except OSError as e:
-            opener.protected_url_opener_error = f"I/O error: {e.errno} {e.strerror}"
+            opener.error = f"I/O error: {e.errno} {e.strerror}"
             resp = None
         except ValueError as e:
-            opener.protected_url_opener_error = str(e)
+            opener.error = str(e)
             resp = None
         except AttributeError:  # ProtectedURLopener returned None.
             pass                # There's already an error set.
 
         if resp is None:
-            error_msg = opener.protected_url_opener_error
+            error_msg = opener.error
         else:
             error_msg = None
 
