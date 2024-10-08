@@ -228,7 +228,7 @@ class ProtectedURLopener():
                                        #timeout in seconds
                                        #comment this parameter to use the default
                                        #system timeout for sockets
-                                       timeout=60s,
+                                       timeout=30,
                                       )
         return resp
 
