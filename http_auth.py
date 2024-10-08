@@ -226,7 +226,9 @@ class ProtectedURLopener():
 
         resp = urllib.request.urlopen( req,
                                        #timeout in seconds
-                                       timeout=3.05,
+                                       #comment this parameter to use the default
+                                       #system timeout for sockets
+                                       timeout=60s,
                                       )
         return resp
 
@@ -255,7 +257,7 @@ def tests():
             resp = None
         except urllib.error.URLError as e:
             # use this exp one instead of http.client in htmldiff
-            opener.error = f"URL error: invalid URL"
+            opener.error = f"URL error: {e.reason}"
             resp = None
         except OSError as e:
             opener.error = f"I/O error: {e.errno} {e.strerror}"
@@ -303,7 +305,7 @@ def tests():
     url = 'file:///etc/debian_version'
     (resp, error_msg) = test_url(opener, url)
     assert resp is None, 'expected empty resp object'
-    assert error_msg == 'URL error: invalid URL', 'expected URL error'
+    assert error_msg.startswith('URL error: '), 'expected URL error'
 
     url = '/etc/debian_version'
     (resp, error_msg) = test_url(opener, url)
@@ -314,19 +316,18 @@ def tests():
     url = 'data:text/plain;base64,SGVsbG8sIFdvcmxkIQ=='
     (resp, error_msg) = test_url(opener, url)
     assert resp is None, 'expected empty resp object'
-    assert error_msg == 'URL error: invalid URL', 'expected URL error'
+    assert error_msg.startswith('URL error: '), 'expected URL error'
 
     # invalid urls
     url = 'https://doesnexist.com/'
     (resp, error_msg) = test_url(opener, url)
     assert resp is None, 'expected empty resp object'
-    assert error_msg == 'URL error: invalid URL', 'expected URL error'
+    assert error_msg.startswith('URL error: '), 'expected URL error'
 
     url = 'https://doesnexist.comeonthisdomainnameisimaginary/'
     (resp, error_msg) = test_url(opener, url)
     assert resp is None, 'expected empty resp object'
-    assert error_msg == 'URL error: invalid URL', 'expected URL error'
-
+    assert error_msg.startswith('URL error: '), 'expected URL error'
 
     print( '\nall tests completed\n' )
 
