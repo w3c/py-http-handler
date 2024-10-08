@@ -87,7 +87,7 @@ def parse_config(config_file=DEFAULT_CONFIG_FILE):
 
     'local_subnets'
     'addr_local_exemptions',
-    'addr_local_sso_bypass',
+    'addr_sso_bypass',
     'sso_bypass_header'
 
     Each one of the first three entries is a list made
@@ -122,8 +122,8 @@ def parse_config(config_file=DEFAULT_CONFIG_FILE):
     else:
         addr_local_exemptions = []
 
-    if parsed_config.has_section('addr_local_sso_bypass'):
-        addr_local_sso_bypass = parsed_config.getlist('addr_local_sso_bypass',
+    if parsed_config.has_section('addr_sso_bypass'):
+        addr_local_sso_bypass = parsed_config.getlist('addr_sso_bypass',
                                                       'addr')
         addr_local_sso_bypass = [ipaddress.ip_address(value) for value
                                  in addr_local_sso_bypass]
