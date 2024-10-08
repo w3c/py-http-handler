@@ -208,7 +208,7 @@ class ProtectedURLopener():
         object until we call open()
         """
         if header_name and header_value:
-            self.headers.append(header_name, header_value)
+            self.headers[header_name] = header_value
 
     def open(self, url, *args, **kwargs):
         """
@@ -221,7 +221,7 @@ class ProtectedURLopener():
         req = urllib.request.Request(url, unverifiable=True)
 
         if self.headers:
-            for header, value in self.headers:
+            for header, value in self.headers.items():
                 req.add_header(header, value)
 
         resp = urllib.request.urlopen( req,
