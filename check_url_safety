@@ -1,6 +1,7 @@
 #!/bin/env python3
 # -*- coding: utf-8 -*-
-""" check_url_safety - standalone script for calling checkrmote.check_url_safety
+"""
+ check_url_safety - standalone script for calling checkrmote.check_url_safety.
 """
 
 ## check_url_safety
@@ -28,7 +29,7 @@ import argparse
 from urllib.error import URLError
 from urllib.parse import urlparse
 
-from checkremote import check_url_safety
+from checkremote import check_url_safety, is_host_local_sso_bypass, UnsupportedResourceError
 
 # initialize authorized hosts with the hosts that the caller script
 # may access
@@ -44,31 +45,58 @@ def check_url_hostname(url=None):
     else:
         raise UnsupportedResourceError('hostname', url)
 
+def check_sso_bypass_header(url=None):
+    """
+    Checks that the hostname in a url requires a bypass header.
+    Returns the header name and value if succesful, raises
+    an UnsupportedResourceError exception otherwise
+    """
+
+    parsed_url = urlparse(url)
+    if parsed_url is None or parsed_url.hostname is None:
+        raise UnsupportedResourceError('hostname', url)
+
+    bp_header = is_host_local_sso_bypass(parsed_url.hostname)
+    if bp_header is None:
+        raise UnsupportedResourceError('hostname', url)
+
+    return bp_header
+
+
 def main():
     url = None
 
-    parser = argparse.ArgumentParser(description='Checks if a URL is safe for opening')
+    parser = argparse.ArgumentParser(description='Checks if a URL is safe for opening and if it needs a bypass header')
     parser.add_argument('-u', '--url', type=str, required=True,
                         help='url to be checked', default=None)
     parser.add_argument('-cf', '--conf', type=str, required=False,
                         help='configuration file', default=None)
+    parser.add_argument('-bh', '--bypass-header', required=False,
+                        help='output bypass_header', action='store_true',
+                        default=False)
 
     args = parser.parse_args()
     url = args.url
+    bypass_header = args.bypass_header
 
     if url is None:
         parser.print_help()
         sys.exit(-1)
 
     try:
-        kwargs = dict(config_file=args.conf)
-        check_url_safety(url, **{k: v for k, v in kwargs.items() if v is not None})
-        # the hostcheck.conf file should contain the IP@ of the servers
-        # you're authorized to access in your subnet. If you want to
-        # futher restrict access outside of your local subnet,
-        # uncomment the line below and update the hostcheck.conf file
-        #check_url_hostname(url)
-        rv = 0
+        if bypass_header:
+            bp_header = check_sso_bypass_header(url)
+            print(f"{bp_header['name']}: {bp_header['value']}")
+            rv = 0
+        else:
+            kwargs = dict(config_file=args.conf)
+            check_url_safety(url, **{k: v for k, v in kwargs.items() if v is not None})
+            # the hostcheck.conf file should contain the IP@ of the servers
+            # you're authorized to access in your subnet. If you want to
+            # futher restrict access outside of your local subnet,
+            # uncomment the line below and update the hostcheck.conf file
+            #check_url_hostname(url)
+            rv = 0
     except:
         rv = -1
 
