@@ -1,6 +1,6 @@
 #!/bin/env python3
 # -*- coding: utf-8 -*-
-""" check_url_safety - standalone script for calling checkremote.check_url_safety
+""" check_url_safety - standalone script for calling checkrmote.check_url_safety
 """
 
 ## check_url_safety
