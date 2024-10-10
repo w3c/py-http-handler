@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Classes for doing rule constrained HTTP requests. Used in conjunction
-with checkremote.py. 
+with checkremote.py.
 
 Module originally written by Dan Conolly and subsequently maintained
 by Dominique Hazael-Massieu and Brett Smith (2002-2021)
