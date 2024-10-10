@@ -27,10 +27,6 @@
 #    are part of a subnet should be considered local. This is useful
 #    if you have IPv6 address that don't correspond to addresses that
 #    ipaddress or the system libraries don't considers as local.
-# 09/2024 J. Kahan;
-# *  Support configuration options to declare a set of local hosts
-#    than can bypass sso authentication as well as the header allowing
-#    to do so
 
 #
 # This module depends on the python standard library ipaddress module,
@@ -82,20 +78,10 @@ def parse_config(config_file=DEFAULT_CONFIG_FILE):
     """ reads local config for specific local subnets and local ip
     addresses.
 
-    Returns a dictionary with the parsed configuration organized with
-    the following keys:
-
-    'local_subnets'
-    'addr_local_exemptions',
-    'addr_sso_bypass',
-    'sso_bypass_header'
-
-    Each one of the first three entries is a list made
+    Initializes the global variables 'local_subnets' and
+    'addr_local_exemptions'. Each one of these variables is a list made
     with the the different values of the respective configuration file
-    sections converted to ipaddr objects. 'sso_bypass_header is a dictionary.
-
-    If the configuration file is missing a section, the value for the key
-    will be empty.
+    sections converted to ipaddr objects.
 
     See hostcheck.conf.dist for syntax of the configuration file"""
 
@@ -122,32 +108,7 @@ def parse_config(config_file=DEFAULT_CONFIG_FILE):
     else:
         addr_local_exemptions = []
 
-    if parsed_config.has_section('addr_sso_bypass'):
-        addr_local_sso_bypass = parsed_config.getlist('addr_sso_bypass',
-                                                      'addr')
-        addr_local_sso_bypass = [ipaddress.ip_address(value) for value
-                                 in addr_local_sso_bypass]
-    else:
-        addr_local_sso_bypass = []
-
-    sso_bypass_header = {}
-    if (
-            parsed_config.has_section('sso_bypass_header')
-            and parsed_config.has_option('sso_bypass_header', 'name')
-            and parsed_config.has_option('sso_bypass_header', 'value')
-    ):
-
-        name = parsed_config.get('sso_bypass_header', 'name')
-        value = parsed_config.get('sso_bypass_header','value')
-
-        if name and value:
-            sso_bypass_header['name'] = name
-            sso_bypass_header['value'] = value
-
-    return { 'local_subnets' : local_subnets,
-             'addr_local_exemptions': addr_local_exemptions,
-             'addr_local_sso_bypass' : addr_local_sso_bypass,
-             'sso_bypass_header' : sso_bypass_header }
+    return (local_subnets, addr_local_exemptions)
 
 def all_addrs(host):
     """Iterate over IPAddress objects associated with this hostname.
@@ -210,7 +171,7 @@ def is_addr_local(addr, local_subnets=None, addr_local_exemptions=None):
 
     return is_local
 
-def is_host_local(host, config_file=DEFAULT_CONFIG_FILE, config_parsed=None):
+def is_host_local(host, config_file=DEFAULT_CONFIG_FILE):
     """Test if a hostname has local IP addresses.
 
     This function checks every IP address associated with the given
@@ -224,10 +185,7 @@ def is_host_local(host, config_file=DEFAULT_CONFIG_FILE, config_parsed=None):
     """
 
     # check that output of parse_config returns a list if config_file doesn't exist
-    if not config_parsed:
-        config_parsed = parse_config(config_file)
-    local_subnets = config_parsed['local_subnets']
-    addr_local_exemptions = config_parsed['addr_local_exemptions']
+    (local_subnets, addr_local_exemptions) =  parse_config(config_file)
 
     addresses = list(all_addrs(host))
     local_count = \
@@ -264,17 +222,16 @@ def check_port(port, service, extra_ports=frozenset(), min_safe_port=1024):
             (port >= min_safe_port)):
         raise UnsupportedResourceError("port", port)
 
-def check_url_safety(url, schemes=frozenset(['http', 'https']),
+def check_url_safety(url, schemes=frozenset(['http', 'https', 'ftp']),
                      check_port_func=check_port,
-                     config_file=DEFAULT_CONFIG_FILE,
-                     config_parsed=None):
+                     config_file=DEFAULT_CONFIG_FILE):
     """Check if a URL points to an acceptable remote resource.
 
     The first argument is the URL to test.  It is considered safe if it
     passes all of the following tests:
     * The URL scheme is included in the schemes argument.  Acceptable
       schemes should be listed as all-lowercase strings.  By default,
-      http and https are accepted.  If None, all schemes are accepted.
+      http, https, and ftp are accepted.  If None, all schemes are accepted.
     * The URL port, if specified, is checked using check_port_func.  This
       function is passed two arguments: the port number, and the lowercase
       URL scheme.  The default is this module's check_port function.
@@ -289,45 +246,8 @@ def check_url_safety(url, schemes=frozenset(['http', 'https']),
         raise UnsupportedResourceError("scheme", url)
     if parsed_url.port is not None:
         check_port_func(parsed_url.port, parsed_url.scheme.lower())
-    if is_host_local(parsed_url.hostname, config_file, config_parsed):
+    if is_host_local(parsed_url.hostname, config_file):
         raise UnsupportedResourceError("address", url)
-
-def is_host_local_sso_bypass(host, config_file=DEFAULT_CONFIG_FILE, config_parsed=None):
-    """Test if a host requires an sso bypass header.
-
-    You may pass in an IP address string. The function will return
-    the bypass header name and value if the test is succesful,
-    None otherwise.
-    """
-    rv = None
-
-    # check that output of parse_config returns a list if config_file doesn't exist
-    if not config_parsed:
-        config_parsed = parse_config(config_file)
-    addr_local_sso_bypass = config_parsed['addr_local_sso_bypass']
-    sso_bypass_header = config_parsed['sso_bypass_header']
-
-    if addr_local_sso_bypass and sso_bypass_header:
-        addresses = list(all_addrs(host))
-        local_count = \
-            len([a for a in addresses if a in addr_local_sso_bypass])
-
-        if local_count > 0:
-            rv = sso_bypass_header
-
-    return rv
-
-def check_sso_bypass(url,
-                     config_file=DEFAULT_CONFIG_FILE,
-                     config_parsed=None):
-    """if the remote host is configured to do an sso bpyass,
-    the function then returns the sso bypass header name and value,
-    otherwise returns None.
-    """
-    parsed_url = urlparse(url)
-    rv = is_host_local_sso_bypass(parsed_url.hostname, config_file, config_parsed)
-
-    return rv
 
 class URLSafetyHandler(urlreq.BaseHandler):
     """urllib handler to safety check all URLs.
@@ -340,15 +260,12 @@ class URLSafetyHandler(urlreq.BaseHandler):
     Each time a request is passed through this handler, the check
     function will be called with the request URL as an argument.  It
     should raise an exception if the URL is unsafe to handle."""
-    def __init__(self, check_func=check_url_safety, config_file=DEFAULT_CONFIG_FILE,
-                 config_parsed=None):
+    def __init__(self, check_func=check_url_safety, config_file=DEFAULT_CONFIG_FILE):
         self.check_url = check_func
         self.config_file = config_file
-        self.config_parsed = config_parsed
 
     def default_open(self, req, *args, **kwargs):
-        self.check_url(req.get_full_url(), config_file=self.config_file,
-                       config_parsed=self.config_parsed)
+        self.check_url(req.get_full_url(), config_file=self.config_file)
 
 
 safe_url_opener = urlreq.build_opener(URLSafetyHandler(config_file=DEFAULT_CONFIG_FILE))
@@ -356,14 +273,24 @@ safe_url_opener = urlreq.build_opener(URLSafetyHandler(config_file=DEFAULT_CONFI
 if __name__ == '__main__':
     import itertools
     import tempfile
-    import atexit
-    import os
 
-    def rmfile(filename):
-        try:
-            os.unlink(filename)
-        except:
-            pass
+    good_urls = ['http://www.w3.org/index.html',
+                 'https://w3.org:8080/Overview.html',
+                 'https://10.0.0.23/index.html',
+                 'https://[2001:0000:130F:0000:0000:09C0:876A:130B]/index.html']
+    bad_urls = ['file:///etc/passwd',
+                'rsync://w3.org/',
+                'http://www.w3.org:22/',
+                'http://localhost/server-status',
+                'http://localhost:8001/2012/pyRdfa/Overview.html',
+                'https://10.0.0.24/index.html',
+                'https://[2001:0000:130F:0000:0000:09C0:876A:130C]/index.html']
+    test_config_file = tempfile.NamedTemporaryFile(delete=True)
+    test_opener = urlreq.OpenerDirector()
+    test_opener.add_handler(URLSafetyHandler(config_file=test_config_file.name))
+    # the value after the function name says if the function accepts
+    # the config_file parameter
+    check_funcs = [(check_url_safety, True), (test_opener.open, False)]
 
     def write_test_config(fp):
         fp.write(b"""
@@ -374,17 +301,7 @@ subnet = 2001:0000:130F:0000::/56
 
 [addr_local_exemptions]
 addr = 10.0.0.23
-addr = 93.184.215.14
 addr = 2001:0000:130F:0000:0000:09C0:876A:130B
-
-[addr_sso_bypass]
-addr = 10.0.0.23
-addr = 93.184.215.14
-addr = 2001:0000:130F:0000:0000:09C0:876A:130B
-
-[sso_bypass_header]
-name = Foo
-value = Bar
         """)
         fp.flush()
 
@@ -402,29 +319,7 @@ value = Bar
             extra_args = {}
         return extra_args
 
-    good_urls = ['http://example.org/index.html',
-                 'http://10.0.0.23/index.html',
-                 'https://w3.org:8080/Overview.html',
-                 'https://10.0.0.23/index.html',
-                 'https://example.org/index.html',
-                 'https://[2001:0000:130F:0000:0000:09C0:876A:130B]/index.html']
-    bad_urls = ['file:///etc/passwd',
-                'rsync://w3.org/',
-                'http://www.w3.org:22/',
-                'http://localhost/server-status',
-                'http://localhost:8001/2012/pyRdfa/Overview.html',
-                'https://10.0.0.24/index.html',
-                'https://[2001:0000:130F:0000:0000:09C0:876A:130C]/index.html']
-
-    test_config_file = tempfile.NamedTemporaryFile(delete=False)
-    atexit.register(rmfile, test_config_file.name)
     write_test_config(test_config_file)
-
-    test_opener = urlreq.OpenerDirector()
-    test_opener.add_handler(URLSafetyHandler(config_file=test_config_file.name))
-    # the value after the function name says if the function accepts
-    # the config_file parameter
-    check_funcs = [(check_url_safety, True), (test_opener.open, False)]
 
     for host in ['127.0.0.1', '127.254.1.2', '10.1.2.3', '10.254.4.5',
                  '172.16.1.2', '172.31.4.5', '192.168.0.1', '192.168.254.5',
@@ -433,29 +328,11 @@ value = Bar
                  '2001:0000:130F:0000:0000:09C0:876A:130C'
                  ]:
         assert is_host_local(host, test_config_file.name), f"local host {host} not recognized"
-
-    for host in ['4.2.2.1', '2a03::1', 'w3.org',
-                 'example.org',
-                 '2001:0000:130F:0000:0000:09C0:876A:130B'
-                 ]:
-        assert not is_host_local(host, test_config_file.name), f"non-local host {host} misflagged"
-
-    for host in ['example.org',
+    for host in ['4.2.2.1', '2a03::1', 'w3.org', 'www.w3.org',
                  '10.0.0.23',
                  '2001:0000:130F:0000:0000:09C0:876A:130B'
                  ]:
-        assert is_host_local_sso_bypass(host, test_config_file.name), f"sso bypass host {host} not recognized"
-
-    for host in ['4.2.2.1', '2a03::1', 'w3.org',
-                 '10.0.0.24',
-                 '2001:0000:130F:0000:0000:09C0:876A:130C'
-                 ]:
-        assert not is_host_local_sso_bypass(host, test_config_file.name), f"non sso bypass host {host} misflagged"
-
-    sso_bypass_header = is_host_local_sso_bypass('example.org', test_config_file.name)
-    assert sso_bypass_header, f"sso bypass header is None"
-    assert sso_bypass_header['name'] == 'Foo', f"sso bypass header name, expected 'Foo' got {sso_bypass_header['name']}"
-    assert sso_bypass_header['value'] == 'Bar', f"sso bypass header value, expected 'Bar' got {sso_bypass_header['name']}"
+        assert not is_host_local(host, test_config_file.name), f"non-local host {host} misflagged"
 
     for url, check_func in itertools.product(good_urls, check_funcs):
         extra_args = prepare_extra_args(add_config_file=check_func[1],
