@@ -161,6 +161,11 @@ class ProtectedURLopener():
 
         check_url = self.CheckUrl()
 
+        # add the X-Forwarded-For header if it's in the environment
+        forwarded_addr = self.get_forwarded_addr()
+        if forwarded_addr:
+            self.add_header('X-Forwarded-For', forwarded_addr)
+
         # initialize and associate our handlers with the opener
         #
 
@@ -209,6 +214,23 @@ class ProtectedURLopener():
         """
         if header_name and header_value:
             self.headers[header_name] = header_value
+
+    def get_forwarded_addr(self):
+        """
+        Checks if the environment has any of the usual
+        forwarded address variables. If yes, returns the value
+        of the first one it finds; returns None otherwise
+        """
+        rv = None
+        env_variables = [ 'REMOTE_ADDR', 'X_FORWARD_IP_ADDR', 'X_FORWARDED_FOR',
+                          'X_REAL_IP']
+
+        for var in env_variables:
+            if env_variable in os.environ:
+                rv = os.environ.get(var)
+                break
+
+        return rv
 
     def open(self, url, *args, **kwargs):
         """
