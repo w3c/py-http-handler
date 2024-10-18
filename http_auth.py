@@ -127,7 +127,8 @@ class ProtectedURLopener():
             handler for HTTP 304 as it is still missing in urllib.requests.py
             We just generate an error message.
             """
-            print('HTTP/1.1 304 Not Modified')
+            #print('HTTP/1.1 304 Not Modified')
+            pass
 
 
     class HTTPDefaultErrorHandler(urllib.request.HTTPDefaultErrorHandler):
