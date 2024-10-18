@@ -11,9 +11,9 @@ by Dominique Hazael-Massieu and Brett Smith (2002-2021)
   security issues, and add a new configurable bypass header option.
 """
 
+import os
 import urllib
-import sys
-import requests
+import urllib.error
 
 # cf https://github.com/w3c/py-http-handler/blob/master/checkremote.py
 from checkremote import( parse_config, check_url_safety,
@@ -47,11 +47,10 @@ class ProtectedURLopener():
             """
             try:
                 check_url_safety(url, config_parsed=self.config_parsed)
-            except UnsupportedResourceError:
-                raise OSError( 403, f"Access to url {url} is not allowed" )
+            except UnsupportedResourceError as error:
+                raise urllib.error.URLError( error.reason )
             if self.surblchecker.isMarkedAsSpam(url):
-                raise OSError(
-                    403,
+                raise urllib.error.URLError(
                     f"Access to url {url} is not allowed as it is marked as spam in SURBL")
 
         def check_sso_bypass_header(self, req):
@@ -225,9 +224,9 @@ class ProtectedURLopener():
         env_variables = [ 'REMOTE_ADDR', 'X_FORWARD_IP_ADDR', 'X_FORWARDED_FOR',
                           'X_REAL_IP']
 
-        for var in env_variables:
-            if env_variable in os.environ:
-                rv = os.environ.get(var)
+        for env_var in env_variables:
+            if env_var in os.environ:
+                rv = os.environ.get(env_var)
                 break
 
         return rv
@@ -260,7 +259,7 @@ class ProxyAuthURLopener(ProtectedURLopener):
     Dummy class to provide for backward compatibility while updating existing
     scripts to the consolidated parent class
     """
-    pass
+
 
 def tests():
     """
@@ -275,7 +274,7 @@ def tests():
         try:
             resp = opener.open( url )
         except urllib.error.HTTPError as e:
-            opener.error = f"HTTP Error {e.code} {e.reason}"
+            opener.error = f"{e.code} {e.reason}"
             resp = None
         except urllib.error.URLError as e:
             # use this exp one instead of http.client in htmldiff
@@ -315,13 +314,13 @@ def tests():
     url = 'https://httpbin.org/status/304'
     (resp, error_msg) = test_url(opener, url)
     assert resp is None
-    assert error_msg.startswith('HTTP Error 304 '), 'expected HTTP Error 304 '
+    assert error_msg.startswith('304 '), 'expected 304 '
 
     # protected URI
     url = 'https://httpbin.org/basic-auth/foo/bar'
     (resp, error_msg) = test_url(opener, url)
     assert resp is None, 'expected empty resp object'
-    assert error_msg.startswith('HTTP Error 401 '), 'expected HTTP Error 401'
+    assert error_msg.startswith('401 '), 'expected 401 '
 
     # localfiles
     url = 'file:///etc/debian_version'
