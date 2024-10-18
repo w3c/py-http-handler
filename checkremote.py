@@ -73,9 +73,13 @@ class ConfigParserMultiValues(OrderedDict):
 
 
 class UnsupportedResourceError(URLError):
-    def __init__(self, res_type, resource):
-        super().__init__(
-            f'unsupported {res_type}: {resource}')
+    def __init__(self, res_type, resource=None):
+        if resource:
+            reason = f'unsupported {res_type}: {resource}'
+        else:
+            reason = f'unsupported {res_type}'
+            
+        super().__init__(reason)
 
 
 def parse_config(config_file=DEFAULT_CONFIG_FILE):
@@ -285,12 +289,13 @@ def check_url_safety(url, schemes=frozenset(['http', 'https']),
     UnsupportedResrouceError.
     """
     parsed_url = urlparse(url)
-    if (schemes is not None) and (parsed_url.scheme.lower() not in schemes):
-        raise UnsupportedResourceError("scheme", url)
+    scheme = parsed_url.scheme.lower()
+    if (schemes is not None) and (scheme not in schemes):
+        raise UnsupportedResourceError("scheme", scheme)
     if parsed_url.port is not None:
-        check_port_func(parsed_url.port, parsed_url.scheme.lower())
+        check_port_func(parsed_url.port, scheme)
     if is_host_local(parsed_url.hostname, config_file, config_parsed):
-        raise UnsupportedResourceError("address", url)
+        raise UnsupportedResourceError("address")
 
 def is_host_local_sso_bypass(host, config_file=DEFAULT_CONFIG_FILE, config_parsed=None):
     """Test if a host requires an sso bypass header.
