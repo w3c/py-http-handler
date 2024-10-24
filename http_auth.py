@@ -255,13 +255,6 @@ class ProtectedURLopener():
         return resp
 
 
-class ProxyAuthURLopener(ProtectedURLopener):
-    """
-    Dummy class to provide for backward compatibility while updating existing
-    scripts to the consolidated parent class
-    """
-
-
 def tests():
     """
     Small testsuite to ease module maintenance.
