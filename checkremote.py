@@ -153,15 +153,17 @@ def parse_config(config_file=DEFAULT_CONFIG_FILE):
     if (
             parsed_config.has_section('surbl')
             and parsed_config.has_option('surbl', 'two_level_tlds')
-            and parsed_config.has_option('surbl', 'whitelist')
     ):
 
         two_level_tlds = parsed_config.get('surbl', 'two_level_tlds')
-        whitelist = parsed_config.get('surbl', 'whitelist')
+        if parsed_config.has_option('surbl', 'whitelist'):
+            whitelist = parsed_config.get('surbl', 'whitelist')
+        else:
+            whitelist = None
 
-        if two_level_tlds and whitelist:
-            surbl_files['two_level_tlds'] = name
-            surbl_files['whitelist'] = value
+        if two_level_tlds:
+            surbl_files['two_level_tlds'] = two_level_tlds
+            surbl_files['whitelist'] = whitelist
 
     return { 'local_subnets' : local_subnets,
              'addr_local_exemptions': addr_local_exemptions,
