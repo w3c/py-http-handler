@@ -17,3 +17,7 @@ subnet = 2001:0000:130F:0000::/56
 [addr_local_exemptions]
 addr = 10.0.23
 addr = '2001:0000:130F:0000:0000:09C0:876A:130B'
+
+[surbl]
+two_level_tlds = /usr/local/share/surbl/two-level-tlds
+whitelist = /usr/local/etc/surbl.whitelist

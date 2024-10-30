@@ -78,7 +78,7 @@ class UnsupportedResourceError(URLError):
             reason = f'unsupported {res_type}: {resource}'
         else:
             reason = f'unsupported {res_type}'
-            
+
         super().__init__(reason)
 
 
@@ -93,6 +93,7 @@ def parse_config(config_file=DEFAULT_CONFIG_FILE):
     'addr_local_exemptions',
     'addr_sso_bypass',
     'sso_bypass_header'
+    'surbl',
 
     Each one of the first three entries is a list made
     with the the different values of the respective configuration file
@@ -148,10 +149,25 @@ def parse_config(config_file=DEFAULT_CONFIG_FILE):
             sso_bypass_header['name'] = name
             sso_bypass_header['value'] = value
 
+    surbl_files = {}
+    if (
+            parsed_config.has_section('surbl')
+            and parsed_config.has_option('surbl', 'two_level_tlds')
+            and parsed_config.has_option('surbl', 'whitelist')
+    ):
+
+        two_level_tlds = parsed_config.get('surbl', 'two_level_tlds')
+        whitelist = parsed_config.get('surbl', 'whitelist')
+
+        if two_level_tlds and whitelist:
+            surbl_files['two_level_tlds'] = name
+            surbl_files['whitelist'] = value
+
     return { 'local_subnets' : local_subnets,
              'addr_local_exemptions': addr_local_exemptions,
              'addr_local_sso_bypass' : addr_local_sso_bypass,
-             'sso_bypass_header' : sso_bypass_header }
+             'sso_bypass_header' : sso_bypass_header,
+             'surbl' : surbl_files }
 
 def all_addrs(host):
     """Iterate over IPAddress objects associated with this hostname.
