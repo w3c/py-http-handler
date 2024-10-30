@@ -38,14 +38,14 @@ class ProtectedURLopener():
         def __init__(self):
             self.config_parsed  = parse_config()
 
-            surbl_files = parse_config['surbl']
+            surbl_files = self.config_parsed['surbl']
             surbl_two_level_tlds_file = None
             surbl_whitelist_file = None
             if surbl_files:
                 if surbl_files['two_level_tlds']:
-                    surbl_two_level_tlds_file = surbl_files['two_level_tlds']:
+                    surbl_two_level_tlds_file = surbl_files['two_level_tlds']
                 if surbl_files['whitelist']:
-                    surbl_whitelist_file = surbl_files['whitelist']:
+                    surbl_whitelist_file = surbl_files['whitelist']
                 self.surblchecker = surbl.SurblChecker(
                         surbl_two_level_tlds_file, surbl_whitelist_file)
             else:
