@@ -35,12 +35,15 @@ class SurblChecker:
     if S->isMarkedAsSpam('http://www.w3.org/2006/'):
        print("w3.org has been marked as spam!")
 
-    """
+    Takes the location of the file listing the known TLDs where
+    second level registration is well-known and optionaly the path
+    of a whitelist of domain names (to avoid doing dns resolve on
+    these).
 
-    # Takes the location of the file listing the known TLDs where second level registration is well-known
-    # and optionaly the path of a whitelist of domain names (to avoid doing dns resolve on these)
-    # An example of such a file can be downloaded from:
-    # http://spamcheck.freeapp.net/two-level-tlds
+    You can download an up-to-date two-level-tld data file directly
+    from the surbl site:
+    https://www.surbl.org/tld/two-level-tlds
+    """
     def __init__(self, twoLevelsTlds, whitelist=None):
         f = open(twoLevelsTlds)
         self._twoLevelsTlds = f.readlines()
@@ -50,6 +53,7 @@ class SurblChecker:
             g = open(whitelist)
             self._whitelist = g.readlines()
             g.close()
+        self.dns_resolver = dns.resolver.Resolver()
 
     def isMarkedAsSpam(self, uri):
         # The domain part of the URI is the 2nd item in the set
@@ -58,7 +62,7 @@ class SurblChecker:
         if registeredName + "\n" in self._whitelist:
             return 0
         try:
-            answers = dns.resolver.query(
+            answers = self.dns_resolver.resolve(
                 registeredName + '.multi.surbl.org', 'A')
             return 1
         except dns.resolver.NXDOMAIN:
@@ -99,7 +103,7 @@ class Tests(unittest.TestCase):
         S = SurblChecker('/home/dom/data/2006/04/two-level-tlds')
         cases = (("http://www.w3.org/2006/", 0),
                  ("http://www.microsoft.com", 0),
-                 ("http://allofall.net/spammer_i_hate_thou", 1)
+                 ("http://e.lushanotice.com/spammer_i_hate_thou", 1)
                  )
         for inp, exp in cases:
             self.assertEqual(S.isMarkedAsSpam(inp), exp)
