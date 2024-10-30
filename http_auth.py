@@ -37,8 +37,19 @@ class ProtectedURLopener():
         """
         def __init__(self):
             self.config_parsed  = parse_config()
-            self.surblchecker = surbl.SurblChecker(
-                '/usr/local/share/surbl/two-level-tlds', '/usr/local/etc/surbl.whitelist')
+
+            surbl_files = parse_config['surbl']
+            surbl_two_level_tlds_file = None
+            surbl_whitelist_file = None
+            if surbl_files:
+                if surbl_files['two_level_tlds']:
+                    surbl_two_level_tlds_file = surbl_files['two_level_tlds']:
+                if surbl_files['whitelist']:
+                    surbl_whitelist_file = surbl_files['whitelist']:
+                self.surblchecker = surbl.SurblChecker(
+                        surbl_two_level_tlds_file, surbl_whitelist_file)
+            else:
+                self.surblchecker = None
 
         def check_url_safety(self, url):
             """
@@ -46,7 +57,8 @@ class ProtectedURLopener():
             raises an exception if url is not safe.
             """
             try:
-                if self.surblchecker.isMarkedAsSpam(url):
+                if ( self.surblchecker and
+                     self.surblchecker.isMarkedAsSpam(url) ):
                     raise urllib.error.URLError(
                         "sorry, this URL matches a record known in SURBL. See https://www.surbl.org/")
                 check_url_safety(url, config_parsed=self.config_parsed)
