@@ -46,12 +46,12 @@ class ProtectedURLopener():
             raises an exception if url is not safe.
             """
             try:
+                if self.surblchecker.isMarkedAsSpam(url):
+                    raise urllib.error.URLError(
+                        "sorry, this URL matches a record known in SURBL. See https://www.surbl.org/")
                 check_url_safety(url, config_parsed=self.config_parsed)
             except UnsupportedResourceError as error:
                 raise urllib.error.URLError( error.reason )
-            if self.surblchecker.isMarkedAsSpam(url):
-                raise urllib.error.URLError(
-                    f"sorry, this URL matches a record known in SURBL. See https://www.surbl.org/")
 
         def check_sso_bypass_header(self, req):
             """
