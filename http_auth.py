@@ -51,7 +51,7 @@ class ProtectedURLopener():
                 raise urllib.error.URLError( error.reason )
             if self.surblchecker.isMarkedAsSpam(url):
                 raise urllib.error.URLError(
-                    f"Access to url {url} is not allowed as it is marked as spam in SURBL")
+                    f"sorry, this URL matches a record known in SURBL. See https://www.surbl.org/")
 
         def check_sso_bypass_header(self, req):
             """
@@ -253,6 +253,13 @@ class ProtectedURLopener():
                                        timeout=30,
                                       )
         return resp
+
+
+class ProxyAuthURLopener(ProtectedURLopener):
+    """
+    Dummy class to provide for backward compatibility while updating existing
+    scripts to the consolidated parent class
+    """
 
 
 def tests():
