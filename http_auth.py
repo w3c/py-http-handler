@@ -152,6 +152,10 @@ class ProtectedURLopener():
     def surblchecker(self):
         return self._surblchecker
 
+    @property
+    def config_parsed(self):
+        return self._config_parsed
+
     def create_surblchecker(self, config_parsed):
         """
         Creates a surblchecker instance populated with
@@ -182,14 +186,14 @@ class ProtectedURLopener():
         super().__init__(*args, **kwargs)
 
         if config_parsed:
-            self.config_parsed = config_parsed
+            self._config_parsed = config_parsed
         else:
-            self.config_parsed = parse_config()
+            self._config_parsed = parse_config()
 
         if surblchecker:
             self._surblchecker = surblchecker
         else:
-            self._surblchecker = self.create_surblchecker(self.config_parsed)
+            self._surblchecker = self.create_surblchecker(self._config_parsed)
 
         # temp storage for user defined headers. Will be processed
         # when we call open()
@@ -198,7 +202,7 @@ class ProtectedURLopener():
         # filled-up as needed by the default_http_handler
         self.error = ""
 
-        check_url = self.CheckUrl(config_parsed=self.config_parsed,
+        check_url = self.CheckUrl(config_parsed=self._config_parsed,
                                   surblchecker=self._surblchecker)
 
         # add the X-Forwarded-For header if it's in the environment
