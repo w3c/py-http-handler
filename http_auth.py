@@ -35,10 +35,14 @@ class ProtectedURLopener():
         Interface to checkremote.py to avoid having to open and parse
         the config file each time a request is redirected
         """
-        def __init__(self):
-            self.config_parsed  = parse_config()
-            self.surblchecker = surbl.SurblChecker(
-                '/usr/local/share/surbl/two-level-tlds', '/usr/local/etc/surbl.whitelist')
+        def __init__(self, config_parsed=None, surblchecker=None):
+
+            if config_parsed is None:
+                self.config_parsed  = parse_config()
+            else:
+                self.config_parsed = config_parsed
+
+            self.surblchecker = surblchecker
 
         def check_url_safety(self, url):
             """
@@ -47,11 +51,13 @@ class ProtectedURLopener():
             """
             try:
                 check_url_safety(url, config_parsed=self.config_parsed)
+
+                if ( self.surblchecker and
+                     self.surblchecker.isMarkedAsSpam(url) ):
+                    raise urllib.error.URLError(
+                        "sorry, this URL matches a record known in SURBL. See https://www.surbl.org/")
             except UnsupportedResourceError as error:
                 raise urllib.error.URLError( error.reason )
-            if self.surblchecker.isMarkedAsSpam(url):
-                raise urllib.error.URLError(
-                    f"Access to url {url} is not allowed as it is marked as spam in SURBL")
 
         def check_sso_bypass_header(self, req):
             """
@@ -128,7 +134,6 @@ class ProtectedURLopener():
             We just generate an error message.
             """
             #print('HTTP/1.1 304 Not Modified')
-            pass
 
 
     class HTTPDefaultErrorHandler(urllib.request.HTTPDefaultErrorHandler):
@@ -144,13 +149,52 @@ class ProtectedURLopener():
             self.protected_url_opener_instance.set_error(repr(code) + " " + msg)
             super().http_error_default(req, fp, code, msg, hdrs)
 
+    @property
+    def surblchecker(self):
+        return self._surblchecker
 
-    def __init__(self, *args, **kwargs):
+    @property
+    def config_parsed(self):
+        return self._config_parsed
+
+    def create_surblchecker(self, config_parsed):
+        """
+        Creates a surblchecker instance populated with
+        the content of the two_level_tlds and whitelist files
+        as stated by configuration.
+        Returns a surblchecker instance or None if two_level_tlds
+        is empty.
+        """
+        surbl_files = config_parsed['surbl']
+        surbl_two_level_tlds_file = None
+        surbl_whitelist_file = None
+        if surbl_files:
+            if surbl_files['two_level_tlds']:
+                surbl_two_level_tlds_file = surbl_files['two_level_tlds']
+            if surbl_files['whitelist']:
+                surbl_whitelist_file = surbl_files['whitelist']
+            surblchecker = surbl.SurblChecker(
+                surbl_two_level_tlds_file, surbl_whitelist_file)
+        else:
+            surblchecker = None
+
+        return surblchecker
+
+    def __init__(self, *args, config_parsed=None, surblchecker=None, **kwargs):
         """
         Adds custom handlers to urllib.open
         """
-
         super().__init__(*args, **kwargs)
+
+        if config_parsed:
+            self._config_parsed = config_parsed
+        else:
+            self._config_parsed = parse_config()
+
+        if surblchecker:
+            self._surblchecker = surblchecker
+        else:
+            self._surblchecker = self.create_surblchecker(self._config_parsed)
 
         # temp storage for user defined headers. Will be processed
         # when we call open()
@@ -159,12 +203,13 @@ class ProtectedURLopener():
         # filled-up as needed by the default_http_handler
         self.error = ""
 
-        check_url = self.CheckUrl()
+        check_url = self.CheckUrl(config_parsed=self._config_parsed,
+                                  surblchecker=self._surblchecker)
 
         # add the X-Forwarded-For header if it's in the environment
-        forwarded_addr = self.get_forwarded_addr()
-        if forwarded_addr:
-            self.add_header('X-Forwarded-For', forwarded_addr)
+        forwarded_for_addr = self.get_forwarded_for_addr()
+        if forwarded_for_addr:
+            self.add_header('X-Forwarded-For', forwarded_for_addr)
 
         # initialize and associate our handlers with the opener
         #
@@ -215,7 +260,7 @@ class ProtectedURLopener():
         if header_name and header_value:
             self.headers[header_name] = header_value
 
-    def get_forwarded_addr(self):
+    def get_forwarded_for_addr(self):
         """
         Checks if the environment has any of the usual
         forwarded address variables. If yes, returns the value
@@ -280,8 +325,10 @@ def tests():
         except ValueError as e:
             opener.error = str(e)
             resp = None
-        except AttributeError:  # ProtectedURLopener returned None.
-            pass                # There's already an error set.
+        except AttributeError:
+            # ProtectedURLopener returned None.
+            # There's already an error set.
+            resp = None
 
         if resp is None:
             error_msg = opener.error
